@@ -71,19 +71,65 @@ function M.escape_pattern(text)
   return text:gsub('([^%w])', '%%%1')
 end
 
--- Go up in the directory tree "limit" amount of times, and then returns the path.
-function M.find_parent_dir(dir, limit)
-  for subdir in vim.fs.parents(dir) do
-    if vim.fn.isdirectory(subdir) then
-      if limit > 0 then
-        return M.find_parent_dir(subdir, limit - 1)
-      else
-        break
-      end
+-- Find the git repository root by looking for .git directory
+-- Stops at the FIRST .git found (closest to current directory)
+function M.find_git_root(dir)
+  -- First check the current directory itself
+  local current_git_dir = dir .. '/.git'
+  if vim.fn.isdirectory(current_git_dir) == 1 or vim.fn.filereadable(current_git_dir) == 1 then
+    M.dbg('Found git root at current directory: ' .. dir)
+    return dir
+  end
+
+  -- Then check parent directories, stopping at the FIRST .git found
+  for parent in vim.fs.parents(dir) do
+    local git_dir = parent .. '/.git'
+    if vim.fn.isdirectory(git_dir) == 1 or vim.fn.filereadable(git_dir) == 1 then
+      M.dbg('Found git root at: ' .. parent)
+      return parent
     end
   end
 
-  return dir
+  -- If no .git found, return nil to indicate no git repository
+  M.dbg 'No git root found'
+  return nil
+end
+
+-- Go up in the directory tree until we find .git or reach the limit, whichever comes first
+function M.find_parent_dir(dir, limit)
+  local current_dir = dir
+
+  M.dbg('Starting parent directory search from: ' .. current_dir)
+  M.dbg('Maximum steps allowed: ' .. limit)
+
+  -- Check if we should respect git root
+  if config.settings.respect_git_root ~= false then -- default to true if not set
+    local git_root = M.find_git_root(current_dir)
+
+    -- If we found a git root, use it as our search boundary
+    if git_root then
+      M.dbg('Using git repository root as search boundary: ' .. git_root)
+      return git_root
+    else
+      M.dbg 'No git repository found, using fallback behavior'
+    end
+  end
+
+  -- If no git root found or git root detection disabled, fall back to the old behavior with limit
+  local steps = 0
+  for parent in vim.fs.parents(current_dir) do
+    if vim.fn.isdirectory(parent) == 1 then
+      steps = steps + 1
+      if steps >= limit then
+        M.dbg('Reached step limit (' .. limit .. '), stopping at: ' .. parent)
+        return parent
+      end
+      current_dir = parent
+    end
+  end
+
+  M.dbg('Finished parent directory search at: ' .. current_dir)
+  return current_dir
 end
 
 -- Creating a regex search path string with all venv names separated by
@@ -142,6 +188,14 @@ end
 --- @type fun(haystack: string, needle: string): boolean
 function M.starts_with(haystack, needle)
   return string.sub(haystack, 1, string.len(needle)) == needle
+end
+
+function M.tablelength(t)
+  local count = 0
+  for _ in pairs(t) do
+    count = count + 1
+  end
+  return count
 end
 
 return M

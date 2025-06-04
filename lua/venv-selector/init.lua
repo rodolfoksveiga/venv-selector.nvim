@@ -1,9 +1,8 @@
 local venv = require 'venv-selector.venv'
 local config = require 'venv-selector.config'
-local dbg = require('venv-selector.utils').dbg
-local mytelescope = require 'venv-selector.mytelescope'
 local hooks = require 'venv-selector.hooks'
 local utils = require 'venv-selector.utils'
+local picker_factory = require 'venv-selector.pickers.factory'
 
 local M = {}
 
@@ -11,12 +10,8 @@ local M = {}
 function M.setup(settings)
   -- Let user config overwrite any default config options.
   config.settings = vim.tbl_deep_extend('force', config.default_settings, settings or {})
-  dbg(config.settings)
+  utils.dbg(config.settings)
 
- if config.settings.stay_on_this_version == false then
- 	utils.notify("This plugin has a new 2024 version that was rewritten from scratch to support user defined searches: https://github.com/linux-cultist/venv-selector.nvim/tree/regexp.")
- 	utils.notify("Its highly recommended to upgrade, but if you want to stay on this version, you can set the option 'stay_on_this_version' to true. Only the new version will receive updates.")
- end
   -- Create the VenvSelect command.
   local venv_select_current = function()
     if M.get_active_venv() ~= nil then
@@ -48,7 +43,8 @@ end
 
 -- The main function runs when user executes VenvSelect command
 function M.open()
-  mytelescope.open()
+  local picker = picker_factory.get_picker()
+  picker.open()
 end
 
 function M.deactivate_venv()

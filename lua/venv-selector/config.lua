@@ -12,6 +12,8 @@ M.default_settings = {
   search_workspace = true,
   search_venv_managers = true,
   parents = 2, -- When search is true, go this many directories up from the current opened buffer
+  respect_git_root = true, -- Stop searching at git repository root
+  picker = 'telescope',
   poetry_path = system.get_venv_manager_default_path 'Poetry',
   pdm_path = system.get_venv_manager_default_path 'PDM',
   pipenv_path = system.get_venv_manager_default_path 'Pipenv',
@@ -31,7 +33,6 @@ M.default_settings = {
   cache_dir = system.get_cache_default_path(),
   dap_enabled = false,
   notify_user_on_activate = true,
-  stay_on_this_version = false,
   changed_venv_hooks = { hooks.basedpyright_hook, hooks.pyright_hook, hooks.pylance_hook, hooks.pylsp_hook },
 }
 
@@ -40,10 +41,8 @@ function M.get_buffer_dir()
   local dbg = require('venv-selector.utils').dbg
   local path
   if M.settings.path == nil then
-    path = require('telescope.utils').buffer_dir()
-    dbg('Telescope path: ' .. path)
-  -- path = vim.fn.expand("%:p:h")
-  -- dbg("Using path from vim.fn.expand: " .. path)
+    path = vim.fn.expand '%:p:h'
+    dbg('Buffer path: ' .. path)
   else
     path = vim.api.nvim_call_function('expand', { M.settings.path })
     dbg('Using path from settings path: ' .. path)
